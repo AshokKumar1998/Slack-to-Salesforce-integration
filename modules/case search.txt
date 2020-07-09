@@ -1,0 +1,60 @@
+"use strict";
+
+let auth = require("./slack-salesforce-auth"),
+    force = require("./force"),
+    CASEUPDATE_TOKEN = process.env.SLACK_CASEUPDATE_TOKEN;
+
+exports.execute = (req, res) => {
+
+    if (req.body.token != CASEUPDATE_TOKEN) {
+        res.send("Invalid token");
+        return;
+    }
+
+    let slackUserId = req.body.user_id,
+        oauthObj = auth.getOAuthObject(slackUserId),
+        params = req.body.text.split(":"),
+        case_number = params[0],
+        case_status = params[1],
+        q = "SELECT Id, Subject, Description, CaseNumber, Status FROM Case WHERE CaseNumber ='" + case_number + "' LIMIT 1";
+
+    force.query(oauthObj, q)
+        .then(data => {
+
+            let Cases = JSON.parse(data).records;
+
+            if (Cases && Cases.length>0) {
+
+                let case_to_change = Cases[0];
+
+                let attachments = [];
+
+                let fields = [];
+                fields.push({title: "Case Id", value: case_to_change.Id, short:false});
+                fields.push({title: "Subject", value: case_to_change.Subject, short:false});
+                fields.push({title: "Description", value: case_to_change.Description, short:false});
+                fields.push({title: "Status", value: case_to_change.Status, short:false});
+                fields.push({title: "Open in Salesforce:", value: oauthObj.instance_url + "/" + case_to_change.Id, short:false});
+
+                let message = {
+                        text: "Found Case :",
+                        attachments: [
+                            {color: "#F2CF5B", fields: fields}
+                        ]
+                    };
+                res.json(message);
+
+            } else {
+
+                res.send("No records : "+data);
+
+            }
+        })
+        .catch(error => {
+            if (error.code == 401) {
+                res.send(`Visit this URL to login to Salesforce: https://${req.hostname}/login/` + slackUserId);
+            } else {
+                res.send("An error as occurred");
+            }
+        });
+};
