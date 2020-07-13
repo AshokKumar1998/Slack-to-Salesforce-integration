@@ -8,6 +8,7 @@ let express = require('express'),
     opportunity = require('./modules/opportunity'),
     _case = require('./modules/case'),
     case_update = require('./modules/case_update'),
+    response_taker = require('./modules/response_taker'),
     whoami = require('./modules/whoami'),
     actions = require('./modules/actions'),
     app = express();
@@ -27,6 +28,7 @@ app.post('/contact', contact.execute);
 app.post('/account', account.execute);
 app.post('/case', _case.execute);
 app.post('/case_update', case_update.execute);
+app.post('/response_taker', response_taker.execute);
 app.post('/whoami', whoami.execute);
 app.post('/login', auth.loginLink);
 app.post('/logout', auth.logout);

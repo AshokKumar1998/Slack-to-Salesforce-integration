@@ -13,26 +13,22 @@ exports.execute = (req, res) => {
 
     let slackUserId = req.body.user_id,
         oauthObj = auth.getOAuthObject(slackUserId),
-        params = req.body.text.split(":"),
-        case_number = params[0],
-        case_status = params[1];
+        params = req.body.text;
+        
 
    force.update( oauthObj,"Case",{
-                                        Id: case_number,
-                                        origin: "Slack",
-                                        status: case_status
+                                        Id: params,
+                                        origin: "Slack"
                                      })
                                         .then(data => {
 
                                                 let attachments = [];
 
                                                 let fields = [];
-                                                fields.push({title: "Case Id", value: case_number, short:false});
-                                                fields.push({title: "Status", value: case_status, short:false});
-                                                fields.push({title: "Open in Salesforce:", value: oauthObj.instance_url + "/" + case_number, short:false});
+                                                fields.push({title: "Open in Salesforce:", value: oauthObj.instance_url + "/" + params, short:false});
 
                                                 let message = {
-                                                        text: "Case Status Updated Successfully :",
+                                                        text: "Getting Options For : ",
                                                         attachments: [
                                                             {color: "#F2CF5B", fields: fields}
                                                         ]

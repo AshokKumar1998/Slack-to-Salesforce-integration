@@ -1,0 +1,152 @@
+// Class to send message to SLACK on Creating of LEAD Record
+public with sharing class SlackUpdateNotifier {
+    
+    private static final String slackURL = 'https://hooks.slack.com/services/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';
+    
+    @InvocableMethod(label='Post to Slack For Status')
+    public static void postToSlack(List<Id> caseId) {
+        System.debug('Invoke Start');
+        Id case_id = caseId[0]; // If bulk, only post first to avoid overloading Slack channel
+        Case cas = [SELECT Id, casenumber, status  from case WHERE Id=:case_id];
+		
+        // **************  	Changing the Wrapper into JSON for Opportunity Owner update 	***************
+        
+		//	Using the Wrapper to create JSON for BODY  
+		//	
+		Map<String,String> caseStatusOption = new Map<String,String>();
+        caseStatusOption.put('text','New');
+        caseStatusOption.put('value','New');
+        
+
+        Map<String,String> caseStatusOption2 = new Map<String,String>();
+        caseStatusOption2.put('text','Working');
+        caseStatusOption2.put('value','Working');
+        
+        
+        Map<String,String> caseStatusOption3 = new Map<String,String>();
+        caseStatusOption3.put('text','Escalated');
+        caseStatusOption3.put('value','Escalated');
+        
+         Map<String,String> caseStatusOption4 = new Map<String,String>();
+        caseStatusOption4.put('text','Closed');
+        caseStatusOption4.put('value','Closed');
+        
+		list<Map<String,String>> option = new list<Map<String,String>>();
+        option.add(caseStatusOption);
+        option.add(caseStatusOption2);
+        option.add(caseStatusOption3);
+        //option.add(caseStatusOption4);
+        
+        List<attachments> attachmentsList = new List<attachments>();
+        List<actions> actionList = new List<actions>();
+        
+        /*for( String option : caseStatusOption){
+            actions actions = new actions();
+            actions.name = option;
+            actions.type = 'button';
+            actions.value = option;
+            actions.text = option;
+            actionList.add(actions);
+        }
+        */
+  
+        
+        actions actions = new actions();
+        actions.name = 'Status';
+        actions.type = 'select';
+        actions.options = option;
+        actions.text = cas.Status;
+        actionList.add(actions);
+            
+        
+        attachments attachments = new attachments();
+        attachments.color = '#3AA3E3';
+        attachments.type = 'interactive_message';
+        attachments.callback_id = cas.id;
+        attachments.attachment_type = 'default';
+        attachments.fallback = 'You are unable to change Case Status';
+        attachments.response_url = 'https://slack-ashok-developer-edition.ap16.force.com/services/apexrest/SlackButtonClickResposeToUpdateCase/';
+        attachments.actions = actionList;
+        attachments.text = 'Select to change Case Status';
+        attachments.token = 's94pCn5GgnDY9IZiSUnlZUa9';
+        attachments.action_ts = '1481579588.685999';
+        attachments.message_ts = '1481579588.685888';
+        attachments.attachment_id = '1';
+        attachments.trigger_id = '1481579588.685777';
+        attachmentsList.add(attachments);
+        
+        JsonParser JsonParser = new JsonParser();
+        JsonParser.text = 'The Case Associated With Case ID '+cas.Id+' :\nCase Number : *' + cas.CaseNumber + '*\nWith Status : *' + cas.Status+'*';
+        JsonParser.attachments = attachmentsList;
+        
+        String body = JSON.serialize(JsonParser);
+        
+        
+        System.debug(body);
+        
+        
+		System.enqueueJob(new QueueableSlackCall(slackURL, 'POST', body));
+    }
+    
+    public class QueueableSlackCall implements System.Queueable, Database.AllowsCallouts {
+        
+        private final String url;
+        private final String method;
+        private final String body;
+        
+        public QueueableSlackCall(String url, String method, String body) {
+            this.url = url;
+            this.method = method;
+            this.body = body;
+        }
+        
+        public void execute(System.QueueableContext ctx) {
+            HttpRequest req = new HttpRequest();
+            req.setMethod(method);
+            req.setBody(body);
+            Http http = new Http();
+            HttpResponse res;
+            if (!Test.isRunningTest()) {
+	            req.setEndpoint(url);
+            	res = http.send(req);
+                System.debug('SlackCasePublisher Class - Response'+res);
+            }
+        }
+
+    }
+    
+    /* 
+     * #
+     * # #	Wrapper Class
+     * #
+     */
+    
+    public class JsonParser{
+        public list<attachments> attachments{get;set;}
+        public String text{get;set;}
+    }    
+    public class attachments{
+        public String color{get;set;}
+        public String token{get;set;}
+        public String callback_id{get;set;}
+        public String attachment_type{get;set;}
+        public String response_url{get;set;} 
+        public String fallback{get;set;}
+        public list<actions> actions{get;set;}
+        public String text{get;set;}
+        public String type{get;set;}
+        public String action_ts{get;set;}
+        public String message_ts{get;set;}
+        public String attachment_id{get;set;}
+        public String trigger_id{get;set;}
+    }
+    public class actions{
+        public String name{get;set;}
+        
+        public String type{get;set;}
+        public String text{get;set;}
+        public list< Map<String,String> > options{get;set;}
+        public String response_url{get;set;} 
+    }
+   
+}

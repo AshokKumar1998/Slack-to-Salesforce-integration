@@ -1,0 +1,39 @@
+@RestResource(urlMapping='/SlackButtonClickResposeToUpdateCase/')
+global class SlackButtonClickRespose {
+    
+    public SlackButtonClickRespose(){
+        
+    }
+    
+    @HttpPost
+    global static String callbackHandler(){
+        
+        RestRequest req = RestContext.request;
+        
+        Map<String,Object> responseMap = new Map<String,Object>();
+        responseMap = (Map<String,Object>)JSON.deserializeUntyped(JSON.serialize(req.params));
+        
+        Lead cas2 = [Select id,description from Lead where id='00Q2w0000027zqHEAQ'];
+        
+        
+        Map<String,Object> slackObjMap = new Map<String,Object>();
+        slackObjMap = (Map<String,Object>)JSON.deserializeUntyped((String)responseMap.get('payload'));
+		
+        String recordId = String.valueOf(slackObjMap.get('callback_id'));   
+        Case cas = [SELECT Id, casenumber, status  from case WHERE Id=:recordId];
+        
+        String actions = String.valueOf(slackObjMap.get('actions'));   
+        actions = actions.substring(1,actions.length()-1);
+        actions = actions.replace('=', ' '); actions = actions.replace('{', ' '); actions = actions.replace('}', ' ');
+        list<String> values = actions.split(' ');
+        for( String s : values ){
+            if( s.equals('New') || s.equals('Working') || s.equals('Escalated') ){
+                cas.Status = s;
+            }
+        }
+        
+        update cas;  
+        
+        return 'Case '+cas.casenumber+' status changed to '+cas.Status;
+    }
+}
